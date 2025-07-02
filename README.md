@@ -46,7 +46,7 @@ sh AeBAD_V_run.sh
 Once you start the training, the model will be saved in `./logs_and_models` which you can define in config file named `OUTPUT_ROOT_DIR`. After training, testing will be automatically performed and the results will be saved in same directory. You can also only start the testing by `main_test.py` after changing the default model path.
 
 ### Results
-Visualization and numerical results can be seen as follows. You can download the best model from [here](). More details can be found in [paper]().
+Visualized and numerical results can be seen as follows. You can download the best model from [here](). More details can be found in [paper]().
 <p align="center">
   <img src=assets/image/aebads.png width="100%">
 </p>
