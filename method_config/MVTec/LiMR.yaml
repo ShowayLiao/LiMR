@@ -1,0 +1,80 @@
+# modified from https://github.com/zhangzilongc/MMR
+# copyright (c) 2023 Z.Zhang et al.
+# copyright (c) 2025 S.Liao et al.
+# Licensed under the Apache License, Version 2.0 (the "LICENSE-APACHE-2.0-ZHANG2023");
+
+RNG_SEED: 54
+
+OUTPUT_DIR: './log_MMR_MVTec'
+
+
+DATASET:
+  name: 'mvtec'
+  resize: 256
+  imagesize: 224
+  subdatasets: ["bottle",
+                "cable",
+                "capsule",
+                "carpet",
+                "grid",
+                "hazelnut",
+                "leather",
+                "metal_nut",
+                "pill",
+                "screw",
+                "tile",
+                "toothbrush",
+                "transistor",
+                "wood",
+                "zipper"]
+
+TRAIN:
+  enable: True
+  save_model: False
+  method: 'LiMR'
+  change: 'original'
+  dataset_path: './datasets/MVTec'
+  backbone: 'resnet34'
+
+  LiMR:
+    DA_low_limit: 0.7
+    DA_up_limit: 1.
+    layers_to_extract_from : ["layer1", "layer2", "layer3"]
+    feature_compression : False
+    scale_factors : (4.0, 2.0, 1.0)
+    FPN_output_dim : (64,128,256,512)
+    load_pretrain_model : True
+    model_chkpt : "./mobilevitv2_175_layer4.pth"
+    finetune_mask_ratio : 0.4
+    test_mask_ratio : 0.
+    alpha : 1.75
+    decoder : 'fpn'
+    block_attn_dropout: 0.0
+    block_ffn_dropout: 0.1
+    block_dropout: 0.4
+
+
+TRAIN_SETUPS:
+  batch_size: 16
+  num_workers: 8
+  learning_rate: 0.001
+  epochs: 200
+  weight_decay: 0.05
+  warmup_epochs: 15
+  save_interval: 20
+  tolerance: 0.001
+  patience: 10
+
+TEST:
+  enable: False
+  save_segmentation_images: True
+  model_path: "./mobilevitv2_175_layer4.pth"
+  method: 'LiMR'
+  dataset_path: './datasets/MVTec'
+  pixel_mode_verify: True
+
+  VISUALIZE:
+    Random_sample: True
+
+TEST_SETUPS:
+  batch_size: 32

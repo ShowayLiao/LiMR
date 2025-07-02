@@ -1,0 +1,70 @@
+# modified from https://github.com/zhangzilongc/MMR
+# copyright (c) 2023 Z.Zhang et al.
+# copyright (c) 2025 S.Liao et al.
+# Licensed under the Apache License, Version 2.0 (the "LICENSE-APACHE-2.0-ZHANG2023");
+
+
+RNG_SEED: 54
+
+# set output root dir
+OUTPUT_ROOT_DIR: './logs_and_models'
+OUTPUT_DIR: 'aebad_S224/LiMR/original/54_2025_07_02_16_23'
+
+
+DATASET:
+  name: 'aebad_S'
+  resize: 256
+  imagesize: 224
+  subdatasets: ["AeBAD_S"]
+  domain_shift_category: "same"
+
+TRAIN:
+  enable: False
+  save_model: True
+  method: 'LiMR'
+  change: 'original'
+  dataset_path: './datasets/AeBAD'
+  backbone: 'resnet34'
+
+  LiMR:
+    DA_low_limit: 0.7
+    DA_up_limit: 1.
+    layers_to_extract_from : ["layer1", "layer2", "layer3"]
+    feature_compression : False
+    scale_factors : (4.0, 2.0, 1.0)
+    FPN_output_dim : (64,128,256,512)
+    load_pretrain_model : True
+    model_chkpt : "./mobilevitv2_175_layer4.pth"
+    finetune_mask_ratio : 0.4
+    test_mask_ratio : 0.
+    alpha : 1.75
+    decoder : 'fpn'
+    block_attn_dropout: 0.0
+    block_ffn_dropout: 0.1
+    block_dropout: 0.4
+
+
+TRAIN_SETUPS:
+  batch_size: 2
+  num_workers: 6
+  learning_rate: 0.001
+  epochs: 2
+  weight_decay: 0.05
+  warmup_epochs: 15
+  save_interval: 20
+  tolerance: 0.001
+  patience: 10
+
+TEST:
+  # only test is true
+  enable: False
+  save_segmentation_images: True
+  model_path: "./logs_and_models/aebad_S224/LiMR/original/54_2025_07_02_16_23/mobileViTMAE_benchmark-17b16-LiMR-175-resnet34_weights_epoch_120.pth"
+  method: 'LiMR'
+  dataset_path: './datasets/AeBAD'
+  pixel_mode_verify: True
+  VISUALIZE:
+    Random_sample: True
+
+TEST_SETUPS:
+  batch_size: 2
