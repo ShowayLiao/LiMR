@@ -1,0 +1,61 @@
+RNG_SEED: 54
+
+OUTPUT_ROOT_DIR: './logs_and_models'
+
+
+DATASET:
+  name: 'aebad_V'
+  resize: 256
+  imagesize: 224
+  subdatasets: ["AeBAD_V"]
+  domain_shift_category: ["video1","video2","video3"]
+
+TRAIN:
+  enable: True
+  save_model: False
+  method: 'LiMR'
+  change: 'original'
+  dataset_path: './datasets/AeBAD'
+  backbone: 'resnet34'
+
+  LiMR:
+    DA_low_limit: 0.7
+    DA_up_limit: 1.
+    layers_to_extract_from : ["layer1", "layer2", "layer3"]
+    feature_compression : False
+    scale_factors : (4.0, 2.0, 1.0)
+    FPN_output_dim : (64,128,256,512)
+    load_pretrain_model : True
+    model_chkpt : "./mobilevitv2_175_layer4.pth"
+    finetune_mask_ratio : 0.4
+    test_mask_ratio : 0.
+    alpha : 1.75
+    decoder : 'fpn'
+    block_attn_dropout: 0.0
+    block_ffn_dropout: 0.1
+    block_dropout: 0.4
+
+
+TRAIN_SETUPS:
+  batch_size: 16
+  num_workers: 8
+  learning_rate: 0.001
+  epochs: 200
+  weight_decay: 0.05
+  warmup_epochs: 15
+  save_interval: 20
+  tolerance: 0.001
+  patience: 10
+
+TEST:
+  enable: False
+  save_segmentation_images: True
+  model_path: "./mobilevitv2_175_layer4.pth"
+  method: 'LiMR'
+  dataset_path: './datasets/AeBAD'
+  pixel_mode_verify: False
+  VISUALIZE:
+      Random_sample: True
+
+TEST_SETUPS:
+  batch_size: 32
