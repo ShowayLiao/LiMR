@@ -202,12 +202,29 @@ class MobileViTBlockv2(nn.Module):
                                    expand(batch_size, in_dim * patch_size, -1))
 
         # [B, C*P, N] --> [B, C*P, H, W]
-        feature_map = F.fold(
-            patches,
-            output_size=output_size,
-            kernel_size=(self.patch_h, self.patch_w),
-            stride=(self.patch_h, self.patch_w),
+        # onnx dosn't support fold, so we use reshape instead
+        # feature_map = F.fold(
+        #     patches,
+        #     output_size=output_size,
+        #     kernel_size=(self.patch_h, self.patch_w),
+        #     stride=(self.patch_h, self.patch_w),
+        # )
+
+
+        # use reshape instead for onnx,ref:https://blog.csdn.net/xunan003/article/details/133752722
+        # 计算平方根（转换为 Tensor）
+        # 在tensorRT中，sqrt算子只能计算浮点数，而后面的reshape要求必须是整数，所以需要对结果进行转换
+        sqrt_patch_size = torch.sqrt(torch.tensor(patch_size).to(torch.float32)).to(torch.int64)
+        sqrt_n_patches = torch.sqrt(torch.tensor(n_patches).to(torch.float32)).to(torch.int64)
+
+        feature_map = patches.reshape(
+            batch_size, in_dim,
+            sqrt_patch_size, sqrt_patch_size,
+            sqrt_n_patches, sqrt_n_patches
         )
+        feature_map = feature_map.permute(0,1,2,4,3,5)
+        feature_map = feature_map.permute(0,1,3,2,5,4)
+        feature_map = feature_map.reshape(batch_size, in_dim, output_size[0], output_size[1])
 
         return feature_map
 

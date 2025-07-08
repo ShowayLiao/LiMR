@@ -207,7 +207,7 @@ class MaskedAutoencoderMobileViT(nn.Module):
 
 
 
-    def forward(self, imgs, mask_ratio=0.75):
+    def forward(self, imgs, mask_ratio=0.):
         latent, mask, ids_restore  = self.forward_encoder(imgs, mask_ratio)
         multilayers = self.forward_decoder(latent,mask)  # [N, L, p*p*3]
         # loss = self.forward_loss(imgs, pred, mask)
