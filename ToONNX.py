@@ -50,9 +50,14 @@ def LiMR_onnx():
                         scale_factors=cfg.TRAIN.LiMR.scale_factors,
                         FPN_output_dim=cfg.TRAIN.LiMR.FPN_output_dim,
                         alpha=cfg.TRAIN.LiMR.alpha).to(device)
-    pre_student,_ = load_model('best_student_model.pth', student, )
+
+    checkpoint = torch.load('best_student_model_175.pth', map_location=device)
+    # pre_student,_ = load_model('best_student_model_175.pth', student, )
+    msg = student.load_state_dict(checkpoint['model_state_dict'], strict=False)
+    print(msg)
+
     # freeze_paras(pre_student.eval())
-    multi_student = student_multi_layer(pre_student).to(device).eval()
+    multi_student = student_multi_layer(student).to(device).eval()
 
 
     # ---------------initialize teacher model---------------
@@ -135,7 +140,7 @@ def build_engine(onnx_path: str, engine_path: str) -> None:
 
 
 if __name__ == "__main__":
-    LiMR_onnx()
+    # LiMR_onnx()
     build_engine('./LiMR_student.onnx', './LiMR_student.engine')
     build_engine('./LiMR_teacher.onnx', './LiMR_teacher.engine')
 

@@ -37,7 +37,7 @@ TRAIN:
     model_chkpt : "./mobilevitv2_175_layer4.pth"
     finetune_mask_ratio : 0.4
     test_mask_ratio : 0.
-    alpha : 0.75
+    alpha : 1.75
     decoder : 'fpn'
     block_attn_dropout: 0.0
     block_ffn_dropout: 0.1
@@ -63,6 +63,10 @@ TEST:
   method: 'LiMR'
   dataset_path: './datasets/AeBAD'
   pixel_mode_verify: True
+  TensorRT:
+    enable: True
+    stu_path: './LiMR_student.engine'
+    tea_path: './LiMR_teacher.engine'
   VISUALIZE:
     Random_sample: True
 

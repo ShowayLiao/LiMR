@@ -12,7 +12,7 @@ import torch
 import logging
 
 from utils import get_dataloaders
-from .load_method import LiMR
+from .load_method import LiMR,LiMR_trt
 
 LOGGER = logging.getLogger(__name__)
 
@@ -56,7 +56,10 @@ def test_model(cfg=None):
 
     # load LiMR base model
     if cfg.TRAIN.method in ['LiMR']:
-        pipeline,_ = LiMR(cfg)
+        if cfg.TEST.TensorRT.enable:
+            pipeline,_ = LiMR_trt(cfg=cfg)
+        else:
+            pipeline,_ = LiMR(cfg)
     else:
         raise NotImplementedError("method {} does not include in target methods".format(cfg.TRAIN.method))
 

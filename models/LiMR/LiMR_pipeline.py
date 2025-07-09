@@ -15,6 +15,9 @@ import time
 import cv2
 from torchvision import transforms
 
+import tensorrt as trt
+import pycuda.driver as cuda
+
 LOGGER = logging.getLogger(__name__)
 
 
@@ -264,7 +267,6 @@ class LiMR_pipeline_:
 
         return auroc_samples, round(np.mean(pauroc_list), 3), round(np.mean(aupro_list), 3),np.mean(time_use)
 
-
     def save_model_and_checkpoint(self,
                                   epoch,
                                   model,
@@ -365,6 +367,12 @@ class LiMR_pipeline_:
 
         else:
             raise Exception("model not found in {}".format(weight_path))
+
+
+
+
+
+
 
 
 

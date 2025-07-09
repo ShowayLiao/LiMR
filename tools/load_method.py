@@ -4,7 +4,7 @@ import logging
 from utils import load_backbones
 from utils.common import freeze_paras,load_model
 
-from models.LiMR import LiMR_pipeline,LiMR_base
+from models.LiMR import LiMR_pipeline,LiMR_base,LiMR_pipeline_trt
 from torch.optim.lr_scheduler import CosineAnnealingLR
 
 
@@ -147,3 +147,10 @@ def LiMR(cfg):
                                  cfg=cfg)
 
     return LiMR_instance, start_epoch
+
+def LiMR_trt(cfg):
+
+    # -------initialize LiMR pipeline----------------
+    LiMR_instance = LiMR_pipeline_trt(cfg=cfg)
+
+    return LiMR_instance, 0

@@ -186,8 +186,8 @@ def caculate_time_trt(student_path,teacher_path,input_data, warmup_iters=30, tes
     end_event_stu = cuda.Event()
 
     # 教师模型同理
-    # start_event_tea = cuda.Event()
-    # end_event_tea = cuda.Event()
+    start_event_tea = cuda.Event()
+    end_event_tea = cuda.Event()
 
     total_time_stu = 0
     total_time_tea = 0
@@ -200,26 +200,27 @@ def caculate_time_trt(student_path,teacher_path,input_data, warmup_iters=30, tes
         # 学生模型推理计时
         start_event_stu.record(stream_stu)
         context_stu.execute_async_v3(stream_handle=stream_stu.handle)
+        end_event_stu.record(stream_stu)
 
         # 教师模型推理计时
-        # start_event_tea.record(stream_tea)
+        start_event_tea.record(stream_tea)
         context_tea.execute_async_v3(stream_handle=stream_tea.handle)
-        # end_event_tea.record(stream_tea)
-        end_event_stu.record(stream_stu)
+        end_event_tea.record(stream_tea)
+
 
         stream_stu.synchronize()  # 同步学生流
         stream_tea.synchronize()  # 同步教师流
 
         # 累加时间（确保事件完成）
         total_time_stu += start_event_stu.time_till(end_event_stu)  # 毫秒
-        # total_time_tea += start_event_tea.time_till(end_event_tea)
+        total_time_tea += start_event_tea.time_till(end_event_tea)
 
     # 计算平均时间
     avg_time_stu = total_time_stu / test_iters
-    # avg_time_tea = total_time_tea / test_iters
+    avg_time_tea = total_time_tea / test_iters
 
-    # print(f"TensorRT Student模型平均推理时间: {avg_time_stu:.4f}ms | TensorRT Teacher模型平均推理时间: {avg_time_tea:.4f}ms")
-    print(f"TensorRT 并行模型平均推理时间: {avg_time_stu:.4f}ms")
+    print(f"TensorRT Student模型平均推理时间: {avg_time_stu:.4f}ms | TensorRT Teacher模型平均推理时间: {avg_time_tea:.4f}ms")
+    # print(f"TensorRT 并行模型平均推理时间: {avg_time_stu:.4f}ms")
 
 def inference_trt(engine_path, input_data):
     runtime = trt.Runtime(trt.Logger(trt.Logger.WARNING))

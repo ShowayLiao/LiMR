@@ -109,6 +109,11 @@ _C.TEST.save_video_segmentation_images = False
 _C.TEST.dataset_path = '/usr/sdd/zzl_data/MV_Tec'
 _C.TEST.model_path = 'E:\lsw\abnormal-detection-of-blades-MMR_0.1022.lsw\MMR\save_model'
 # -----------------------------------------------------------------------------
+_C.TEST.TensorRT = CfgNode()
+_C.TEST.TensorRT.enable = False
+_C.TEST.TensorRT.stu_path = './LiMR_student.engine'
+_C.TEST.TensorRT.tea_path = './LiMR_teacher.engine'
+# -----------------------------------------------------------------------------
 # TEST_SETUPS是一个CfgNode对象，用于存储测试设置的配置信息
 _C.TEST.VISUALIZE = CfgNode()
 _C.TEST.VISUALIZE.Random_sample = True
