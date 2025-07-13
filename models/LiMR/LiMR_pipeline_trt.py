@@ -139,11 +139,11 @@ class LiMR_pipeline_trt:
             # ------------------inference------------------
             # inference
             start_event.record(stream_tea)
-            self.get_peak_memory_usage()  # 获取峰值内存使用情况
+            # self.get_peak_memory_usage()  # 获取峰值内存使用情况
             context_tea.execute_async_v3(stream_handle=stream_tea.handle)
-            self.get_peak_memory_usage()  # 获取峰值内存使用情况
-            context_stu.execute_async_v3(stream_handle=stream_tea.handle)
-            self.get_peak_memory_usage()  # 获取峰值内存使用情况
+            # self.get_peak_memory_usage()  # 获取峰值内存使用情况
+            context_stu.execute_async_v3(stream_handle=stream_stu.handle)
+            # self.get_peak_memory_usage()  # 获取峰值内存使用情况
             end_event.record(stream_tea)
             stream_tea.synchronize()
             stream_stu.synchronize()
@@ -210,8 +210,8 @@ class LiMR_pipeline_trt:
         # I-AUROC
         auroc_samples = round(roc_auc_score(labels_gt, labels_prediction), 3)
 
-        LOGGER.info(f"TensorRT Student模型平均推理时间: {sum(time_use_inf) / len(time_use_inf):.4f}ms | TensorRT Teacher模型平均推理时间: {sum(time_use_post) / len(time_use_post):.4f}ms")
-        LOGGER.info(f"TensorRT Student模型峰值内存使用量: {self.peak_used / (1024 ** 2):.2f} MB")
+        LOGGER.info(f"TensorRT 模型平均推理时间: {sum(time_use_inf) / len(time_use_inf):.4f}ms | 平均后处理时间: {sum(time_use_post) / len(time_use_post)*1000:.4f}ms")
+        # LOGGER.info(f"TensorRT Student模型峰值内存使用量: {self.peak_used / (1024 ** 2):.2f} MB")
 
         return auroc_samples, round(np.mean(pauroc_list), 3), round(np.mean(aupro_list), 3), sum(time_use_inf) / len(time_use_inf)+ sum(time_use_post) / len(time_use_post)
 
@@ -220,7 +220,7 @@ class LiMR_pipeline_trt:
         获取当前CUDA设备的峰值内存使用情况
         :return: 峰值内存使用量（单位：字节）
         """
-        peak_used = cuda.mem_get_info()[1]
+        peak_used = cuda.mem_get_info()[1]-cuda.mem_get_info()[0]
         if peak_used > self.peak_used:
             self.peak_used = peak_used
 
