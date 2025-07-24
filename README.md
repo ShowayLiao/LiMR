@@ -60,6 +60,12 @@ Visualized and numerical results can be seen as follows. You can download the be
 <p align="center">
   <img src=assets/image/aebadv_table.png width="100%">
 </p>
+<p align="center">
+  <img src=assets/image/aebads_fig.png width="100%">
+</p>
+<p align="center">
+  <img src=assets/image/aebadv_fig.png width="100%">
+</p>
 
 
 ### Acknowledgements
