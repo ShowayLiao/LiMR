@@ -1,3 +1,4 @@
+import cv2
 import torch
 from models.LiMR import LiMR_base,MMR_base
 from utils import parse_args, load_config, load_backbones
@@ -7,6 +8,7 @@ import tensorrt as trt
 import numpy as np
 import onnxruntime as ort
 import time
+from torch.nn import functional as F
 
 
 def caculate_time(student,teacher,dummy_input,device=torch.device("cuda"),cfg=None):
@@ -107,6 +109,114 @@ def measure_speed_ort(session,input_name,test_iters,input_np):
         total_time += start_event.elapsed_time(end_event)  # 毫秒
 
     return total_time / test_iters
+
+def inference_single_img_trt(student_path,teacher_path,input_img_path):
+    # image preprocess
+    image = cv2.imread(input_img_path)
+    origin_image = image.copy()
+    image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+    image = cv2.resize(image, (224, 224))  # 假设输入尺寸为224x224
+    image = image.astype(np.float32)
+    image = image/ 255.0  # 归一化到[0, 1]
+    image = cv2.subtract(image, np.array([0.485, 0.456, 0.406], dtype=np.float32))  # 减去均值
+    image = cv2.divide(image, np.array([0.229, 0.224, 0.225], dtype=np.float32))  # 除以标准差
+    image = np.transpose(image, (2, 0, 1))
+    image = np.expand_dims(image, axis=0)  # 添加batch维度
+    input_data = np.ascontiguousarray(np.round(image,decimals=5), dtype=np.float32)  # 转为连续内存布局
+
+    input_shape = input_data.shape
+
+    # --------------initialize TensorRT engine----------------
+    runtime = trt.Runtime(trt.Logger(trt.Logger.WARNING))
+
+    # initialize student TensorRT engine
+    with open(student_path, "rb") as f:
+        engine_stu = runtime.deserialize_cuda_engine(f.read())
+    context_stu = engine_stu.create_execution_context()
+    context_stu.set_input_shape(engine_stu.get_tensor_name(0), input_shape)
+
+    bindings_stu = []
+    for idx in range(engine_stu.num_io_tensors):
+        binding_name = engine_stu.get_tensor_name(idx)
+        # if engine_stu.get_tensor_mode(binding_name) == trt.TensorIOMode.INPUT:
+        #     size = input_data.nbytes  # 输入按实际数据大小
+        #     print(size)
+        # else:
+        shape = context_stu.get_tensor_shape(binding_name)  # 输出按引擎形状
+        dtype = trt.nptype(engine_stu.get_tensor_dtype(binding_name))
+        size = abs(int(np.prod(shape))) * np.dtype(dtype).itemsize
+
+        device_mem = cuda.mem_alloc(size)
+        bindings_stu.append(device_mem)  # 转换为地址用于绑定
+        context_stu.set_tensor_address(binding_name, device_mem)  # 绑定设备内存地址
+        # 不要将device_mem转换为int再存储，这样会让对象失去引用，从而回收，导致分配的内存地址失效
+
+    stream_stu = cuda.Stream()
+
+    # ------------------initialize teacher TensorRT engine----------------------
+
+    with open(teacher_path, "rb") as f:
+        engine_tea = runtime.deserialize_cuda_engine(f.read())
+
+    context_tea = engine_tea.create_execution_context()
+    context_tea.set_input_shape(engine_tea.get_tensor_name(0), input_shape)
+    bindings_tea = []
+    for idx in range(engine_tea.num_io_tensors):
+        binding_name = engine_tea.get_tensor_name(idx)
+        shape = context_tea.get_tensor_shape(binding_name)
+        dtype = trt.nptype(engine_tea.get_tensor_dtype(binding_name))
+        size = abs(int(np.prod(shape))) * np.dtype(dtype).itemsize
+        device_mem = cuda.mem_alloc(size)
+        bindings_tea.append(device_mem)
+        context_tea.set_tensor_address(binding_name, device_mem)
+
+    stream_tea = cuda.Stream()
+
+    #-----------------------------inference----------------------------
+    host_input = cuda.register_host_memory(
+        input_data
+    )
+    cuda.memcpy_htod_async(bindings_stu[0], host_input, stream_stu)
+    cuda.memcpy_htod_async(bindings_tea[0], host_input, stream_tea)
+
+    context_tea.execute_async_v3(stream_handle=stream_tea.handle)
+    # self.get_peak_memory_usage()  # 获取峰值内存使用情况
+    context_stu.execute_async_v3(stream_handle=stream_stu.handle)
+
+    stream_tea.synchronize()
+    stream_stu.synchronize()
+
+    # get output data
+    output_datas_tea = []
+    for idx in range(engine_tea.num_io_tensors):
+        if not engine_tea.get_tensor_mode(engine_tea.get_tensor_name(idx)) == trt.TensorIOMode.INPUT:
+            shape = context_tea.get_tensor_shape(engine_tea.get_tensor_name(idx))
+            dtype = trt.nptype(engine_tea.get_tensor_dtype(engine_tea.get_tensor_name(idx)))
+            output_data = np.empty(shape, dtype=dtype)
+            cuda.memcpy_dtoh_async(output_data, bindings_tea[idx], stream_tea)
+            output_datas_tea.append(torch.from_numpy(output_data))
+
+    output_datas_stu = []
+    for idx in range(engine_stu.num_io_tensors):
+        if not engine_stu.get_tensor_mode(engine_stu.get_tensor_name(idx)) == trt.TensorIOMode.INPUT:
+            shape = context_stu.get_tensor_shape(engine_stu.get_tensor_name(idx))
+            dtype = trt.nptype(engine_stu.get_tensor_dtype(engine_stu.get_tensor_name(idx)))
+            output_data = np.empty(shape, dtype=dtype)
+            cuda.memcpy_dtoh_async(output_data, bindings_stu[idx], stream_stu)
+            output_datas_stu.append(torch.from_numpy(output_data))
+
+    anomaly_map, _ = cal_anomaly_map(output_datas_tea, output_datas_stu, image.shape[-1],
+                                     amap_mode='a')
+
+    map = anomaly_map*255
+    map = map.astype(np.uint8)
+
+    heatmap = cv2.applyColorMap(map[0], cv2.COLORMAP_JET)  # 使用热力图着色
+    heatmap = cv2.resize(heatmap, (origin_image.shape[0], origin_image.shape[1]))  # 调整热力图大小
+    # 将热力图与原图叠加
+    overlay = cv2.addWeighted(origin_image, 0.5, heatmap, 0.5, 0)
+    cv2.imwrite('output_overlay.png', overlay)  # 保存叠加结果
+
 
 
 
@@ -312,6 +422,30 @@ def MMR_main():
     # ----------------计算时间------------------
     caculate_time(student, teacher, dummy_input, device=device, cfg=cfg)
 
+def cal_anomaly_map(fs_list, ft_list, out_size=224, amap_mode='mul'):# ft_list: MMR模型输出的特征图，fs_list: teacher输出的特征图
+    if amap_mode == 'mul':
+        anomaly_map = np.ones([fs_list[0].shape[0], out_size, out_size])
+    else:
+        anomaly_map = np.zeros([fs_list[0].shape[0], out_size, out_size])
+    a_map_list = []
+    for i in range(len(ft_list)):
+        fs = fs_list[i]
+        ft = ft_list[i]
+
+        print("fs shape:", fs.shape, "ft shape:", ft.shape)
+        print(fs[0][0][0][0:10],ft[0][0][0][0:10])
+
+        a_map = 1 - F.cosine_similarity(fs, ft)  # cosine similarity alongside the dimension 1
+        a_map = torch.unsqueeze(a_map, dim=1)
+        a_map = F.interpolate(a_map, size=out_size, mode='bilinear', align_corners=True)
+        a_map = a_map.squeeze(1).cpu().detach().numpy()
+        a_map_list.append(a_map)
+        if amap_mode == 'mul':
+            anomaly_map *= a_map
+        else:
+            anomaly_map += a_map
+    return anomaly_map, a_map_list
+
 
 if __name__ == '__main__':
 
@@ -325,5 +459,6 @@ if __name__ == '__main__':
 
     #---------tensorrt--------
     # inference_trt('./LiMR_student.engine', np.random.randn(1, 3, 224, 224).astype(np.float32))
-    caculate_time_trt('./LiMR_student.engine', './LiMR_teacher.engine', np.random.randn(1, 3, 224, 224).astype(np.float32))
+    # caculate_time_trt('./LiMR_student.engine', './LiMR_teacher.engine', np.random.randn(1, 3, 224, 224).astype(np.float32))
+    inference_single_img_trt('./LiMR_student.engine', './LiMR_teacher.engine', 'IMG_9260.png')
 
