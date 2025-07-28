@@ -104,7 +104,7 @@ class MobileViTBlockv2(nn.Module):
         self.ffn_dropout = ffn_dropout
         self.n_blocks = n_attn_blocks
         self.conv_ksize = conv_ksize
-        self.norm  = LayerNorm(normalized_shape=attn_unit_dim)
+        # self.norm  = LayerNorm(normalized_shape=attn_unit_dim)
 
     def _build_attn_layer(
         self,
@@ -142,9 +142,9 @@ class MobileViTBlockv2(nn.Module):
             )
             for block_idx in range(n_layers)
         ]
-        # global_rep.append(
-        #     LayerNorm(normalized_shape=d_model)
-        # )
+        global_rep.append(
+            nn.LayerNorm(normalized_shape=d_model)
+        )
 
         return nn.Sequential(*global_rep), d_model
 
@@ -253,9 +253,15 @@ class MobileViTBlockv2(nn.Module):
 
         # learn global representations on all patches
 
-        patches = self.global_rep(patches)# B C P N
+        # patches = self.global_rep(patches)# B C P N
+        for name,module in self.global_rep.named_children():
+            if isinstance(module, nn.LayerNorm):
+                patches = module(patches.permute(0, 2, 3, 1)).permute(0, 3, 1, 2)
+            else:
+                patches = module(patches)
 
-        patches = self.norm(patches.permute(0, 2, 3, 1)).permute(0, 3, 1, 2)
+
+        # patches = self.norm(patches.permute(0, 2, 3, 1)).permute(0, 3, 1, 2)
 
 
 

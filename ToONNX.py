@@ -140,9 +140,9 @@ def build_engine(onnx_path: str, engine_path: str) -> None:
 
 
 if __name__ == "__main__":
-    LiMR_onnx()
-    # build_engine('./LiMR_student.onnx', './LiMR_student.engine')
-    # build_engine('./LiMR_teacher.onnx', './LiMR_teacher.engine')
+    # LiMR_onnx()
+    build_engine('./LiMR_student.onnx', './LiMR_student.engine')
+    build_engine('./LiMR_teacher.onnx', './LiMR_teacher.engine')
 
 
 
