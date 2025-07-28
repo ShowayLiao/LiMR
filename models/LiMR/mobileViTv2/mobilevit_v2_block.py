@@ -104,6 +104,7 @@ class MobileViTBlockv2(nn.Module):
         self.ffn_dropout = ffn_dropout
         self.n_blocks = n_attn_blocks
         self.conv_ksize = conv_ksize
+        self.norm  = LayerNorm(normalized_shape=attn_unit_dim)
 
     def _build_attn_layer(
         self,
@@ -141,9 +142,9 @@ class MobileViTBlockv2(nn.Module):
             )
             for block_idx in range(n_layers)
         ]
-        global_rep.append(
-            LayerNorm(normalized_shape=d_model)
-        )
+        # global_rep.append(
+        #     LayerNorm(normalized_shape=d_model)
+        # )
 
         return nn.Sequential(*global_rep), d_model
 
@@ -245,12 +246,18 @@ class MobileViTBlockv2(nn.Module):
         if mask is not None:
             x = x*mask
         fm_conv = self.local_rep(x)
+        # B C H W
 
         # convert feature map to patches
         patches, output_size = self.unfolding_pytorch(fm_conv,mask,idx_keep)
 
         # learn global representations on all patches
-        patches = self.global_rep(patches)
+
+        patches = self.global_rep(patches)# B C P N
+
+        patches = self.norm(patches.permute(0, 2, 3, 1)).permute(0, 3, 1, 2)
+
+
 
         # [B x C x P x N] --> [B x C x H x W]
         fm = self.folding_pytorch(patches=patches, output_size=output_size,ids_restore=ids_restore)

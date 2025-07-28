@@ -432,10 +432,12 @@ def cal_anomaly_map(fs_list, ft_list, out_size=224, amap_mode='mul'):# ft_list: 
         fs = fs_list[i]
         ft = ft_list[i]
 
-        print("fs shape:", fs.shape, "ft shape:", ft.shape)
-        print(fs[0][0][0][0:10],ft[0][0][0][0:10])
+        # print("fs shape:", fs.shape, "ft shape:", ft.shape)
+        # print(fs[0][0][0][0:10],ft[0][0][0][0:10])
 
         a_map = 1 - F.cosine_similarity(fs, ft)  # cosine similarity alongside the dimension 1
+        print("a_map shape:", a_map.shape)
+        print(a_map[0][0][0:10])
         a_map = torch.unsqueeze(a_map, dim=1)
         a_map = F.interpolate(a_map, size=out_size, mode='bilinear', align_corners=True)
         a_map = a_map.squeeze(1).cpu().detach().numpy()

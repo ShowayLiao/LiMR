@@ -216,7 +216,15 @@ class LinearAttnFFN(nn.Module):
     ) -> Tensor:
         if x_prev is None:
             # self-attention
-            x = x + self.pre_norm_attn(x)# 如果没有x_prev，直接进行self-attention，即自注意力+前馈网络
+            for layer in self.pre_norm_attn:
+                if isinstance(layer, LayerNorm):
+                    x = layer(x.permute(0, 2, 3, 1)).permute(0, 3, 1, 2)
+            # x = x.permute(0, 2, 3, 1)
+            # x = self.pre_norm_attn[0](x)  # norm
+            # x = x.permute(0, 3, 1, 2)
+            # x = self.pre_norm_attn[1](x)  # attn
+            # x = self.pre_norm_attn[2](x)  # drop
+            # x = x + self.pre_norm_attn(x)# 如果没有x_prev，直接进行self-attention，即自注意力+前馈网络
         else:
             # cross-attention
             res = x
@@ -226,5 +234,8 @@ class LinearAttnFFN(nn.Module):
             x = x + res  # residual
 
         # Feed forward network
-        x = x + self.pre_norm_ffn(x)# 用1x1卷积代替fc层，前馈网络
+        for layer in self.pre_norm_ffn:
+            if isinstance(layer, LayerNorm):
+                x = layer(x.permute(0, 2, 3, 1)).permute(0, 3, 1, 2)
+        # x = x + self.pre_norm_ffn(x)# 用1x1卷积代替fc层，前馈网络
         return x
