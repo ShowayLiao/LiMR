@@ -112,7 +112,7 @@ def build_engine(onnx_path: str, engine_path: str) -> None:
 
     # 4. 配置构建参数[3,5](@ref)
     config = builder.create_builder_config()
-    # config.set_flag(trt.BuilderFlag.FP16)  # 启用FP16加速，会因layernorm没有显式定义而导致优化失败，输出全为NaN
+    config.set_flag(trt.BuilderFlag.FP16)  # 启用FP16加速，会因layernorm没有显式定义而导致优化失败，输出全为NaN
     config.set_memory_pool_limit(trt.MemoryPoolType.WORKSPACE, 1 << 30)  # 1GB工作空间
 
     # 5. 设置动态输入配置（支持批量处理）[5](@ref)
@@ -141,8 +141,8 @@ def build_engine(onnx_path: str, engine_path: str) -> None:
 
 if __name__ == "__main__":
     # LiMR_onnx()
-    build_engine('./LiMR_student.onnx', './LiMR_student.engine')
-    build_engine('./LiMR_teacher.onnx', './LiMR_teacher.engine')
+    build_engine('./LiMR_student.onnx', './LiMR_student_16.engine')
+    build_engine('./LiMR_teacher.onnx', './LiMR_teacher_16.engine')
 
 
 

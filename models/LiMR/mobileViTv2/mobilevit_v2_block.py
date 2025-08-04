@@ -143,7 +143,7 @@ class MobileViTBlockv2(nn.Module):
             for block_idx in range(n_layers)
         ]
         global_rep.append(
-            nn.LayerNorm(normalized_shape=d_model)
+            LayerNorm(normalized_shape=d_model)
         )
 
         return nn.Sequential(*global_rep), d_model
@@ -253,12 +253,12 @@ class MobileViTBlockv2(nn.Module):
 
         # learn global representations on all patches
 
-        # patches = self.global_rep(patches)# B C P N
-        for name,module in self.global_rep.named_children():
-            if isinstance(module, nn.LayerNorm):
-                patches = module(patches.permute(0, 2, 3, 1)).permute(0, 3, 1, 2)
-            else:
-                patches = module(patches)
+        patches = self.global_rep(patches)# B C P N
+        # for name,module in self.global_rep.named_children():
+        #     if isinstance(module, nn.LayerNorm):
+        #         patches = module(patches.permute(0, 2, 3, 1)).permute(0, 3, 1, 2)
+        #     else:
+        #         patches = module(patches)
 
 
         # patches = self.norm(patches.permute(0, 2, 3, 1)).permute(0, 3, 1, 2)

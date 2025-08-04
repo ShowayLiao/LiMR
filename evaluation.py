@@ -120,9 +120,10 @@ def inference_single_img_trt(student_path,teacher_path,input_img_path):
     image = image/ 255.0  # 归一化到[0, 1]
     image = cv2.subtract(image, np.array([0.485, 0.456, 0.406], dtype=np.float32))  # 减去均值
     image = cv2.divide(image, np.array([0.229, 0.224, 0.225], dtype=np.float32))  # 除以标准差
+    # image = image.astype(np.float16)
     image = np.transpose(image, (2, 0, 1))
     image = np.expand_dims(image, axis=0)  # 添加batch维度
-    input_data = np.ascontiguousarray(np.round(image,decimals=5), dtype=np.float32)  # 转为连续内存布局
+    input_data = np.ascontiguousarray(np.round(image,decimals=5), dtype=np.float16)  # 转为连续内存布局
 
     input_shape = input_data.shape
 
@@ -462,5 +463,5 @@ if __name__ == '__main__':
     #---------tensorrt--------
     # inference_trt('./LiMR_student.engine', np.random.randn(1, 3, 224, 224).astype(np.float32))
     # caculate_time_trt('./LiMR_student.engine', './LiMR_teacher.engine', np.random.randn(1, 3, 224, 224).astype(np.float32))
-    inference_single_img_trt('./LiMR_student.engine', './LiMR_teacher.engine', 'IMG_9260.png')
+    inference_single_img_trt('./LiMR_student_16.engine', './LiMR_teacher_16.engine', 'IMG_9260.png')
 

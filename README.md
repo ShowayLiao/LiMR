@@ -1,8 +1,12 @@
-## More Efficient Blade Anomaly Detection with Lightweight Semantic Masked Reconstruction
+<div align="center">
+  <h1>Lightweight Masked Reconstruction for Real-Time Sensor-Driven Anomaly Detection in Industrial IoT</h1>
+</div>
+
+
 <p align="center">
   <img src=assets/image/LiMRframework.png width="100%">
 </p>
-This is an official Pytorch to ONNX/TensorRT implementation of the paper "More Efficient Blade Anomaly Detection with Lightweight Semantic Masked Reconstruction".
+This is an official Pytorch to ONNX/TensorRT implementation of the paper "Lightweight Masked Reconstruction for Real-Time Sensor-Driven Anomaly Detection in Industrial IoT".
 
 ## Quick start
 ### Preparation
