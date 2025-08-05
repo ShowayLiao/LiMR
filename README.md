@@ -23,7 +23,7 @@ First, put the weight file at the root directory and rename the file to `best_st
 Confirm that the parameter in config file named `cfg.TEST.TensorRT.enable` is True, and then change the engine path `cfg.TEST.TensorRT.stu_path` correctly. Then, just start the `main_test.py` and all results from meassurement would be recorded into log in `./logs_and_models`.
 
 ### c++ inference
-Release soon.
+We implement the inference progress by c++ faster, which is access via [address](https://github.com/ShowayLiao/LiMR_cpp).
 
 ### Acknowledgements
 We acknowledge the excellent implementation as following:
