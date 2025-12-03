@@ -1,6 +1,8 @@
-from utils.common import save_batch_images,save_single_video_segmentation
+from utils.common import save_batch_images,save_single_video_segmentation,visualize_student_layers
 from .utils import ForwardHook, cal_anomaly_map, each_patch_loss_function
 from utils import compute_pixelwise_retrieval_metrics, compute_pro
+
+from PIL import Image
 
 from scipy.ndimage import gaussian_filter
 from sklearn.metrics import roc_auc_score
@@ -15,8 +17,6 @@ import time
 import cv2
 from torchvision import transforms
 
-import tensorrt as trt
-import pycuda.driver as cuda
 
 LOGGER = logging.getLogger(__name__)
 
@@ -113,6 +113,7 @@ class LiMR_pipeline_:
                 # ----------------backward and optimize---------------------
                 self.encoder_optimizer.zero_grad()
                 self.decoder_optimizer.zero_grad()
+                print(loss)
                 loss.backward()
                 self.encoder_optimizer.step()
                 self.decoder_optimizer.step()
@@ -266,6 +267,196 @@ class LiMR_pipeline_:
 
 
         return auroc_samples, round(np.mean(pauroc_list), 3), round(np.mean(aupro_list), 3),np.mean(time_use)
+
+    def infer_single_image(self,
+                           single_image,
+                           mask=None,
+                           save_path=None,
+                           img_label=None):
+        """
+        单张图片异常检测推理函数
+
+        参数说明：
+            single_image: 输入图片，支持两种格式：
+                          - numpy.ndarray：如cv2读取的BGR格式图片（shape: [H, W, 3]）
+                          - PIL.Image.Image：RGB格式图片
+            mask: 可选，像素级标注mask（0=正常，1=异常），格式同single_image，用于计算像素级指标
+            save_path: 可选，异常热力图保存路径（如"./anomaly_heatmap.jpg"），若为None则不保存
+            img_label: 可选，图片级标签（0=正常，1=异常），用于计算PRO-AUROC；若为None，将根据mask自动判断
+
+        返回结果：
+            result: 字典包含以下键：
+                    - "image_level_anomaly_score": 图片级异常分数（越大越可能异常）
+                    - "anomaly_map": 异常图（numpy.ndarray，shape: [H, W]），每个像素值为对应位置的异常分数
+                    - "pixel_metrics": 像素级指标字典（仅当提供mask时非None），包含"P-AUROC"和"PRO-AUROC"
+        """
+        # -------------------------- 1. 输入图片格式处理与预处理 --------------------------
+        # 1.1 统一图片格式为PIL.Image
+        if isinstance(single_image, np.ndarray):
+            # 若为cv2读取的BGR数组，转为RGB
+            if single_image.shape[-1] == 3:
+                single_image = cv2.cvtColor(single_image, cv2.COLOR_BGR2RGB)
+            # 转为PIL Image（处理单通道灰度图也兼容）
+            single_image = Image.fromarray(single_image)
+        elif isinstance(single_image, Image.Image):
+            # 若已为PIL Image，直接使用（确保为RGB格式）
+            if single_image.mode != "RGB":
+                single_image = single_image.convert("RGB")
+        else:
+            raise TypeError("不支持的图片格式！请输入 numpy.ndarray（BGR/RGB）或 PIL.Image.Image（RGB）")
+
+        # 1.2 图片预处理（与训练时保持一致，包含归一化，适配教师模型预训练需求）
+        # 注：若教师模型未使用ImageNet预训练，需修改Normalize的均值/方差
+        image_transform = transforms.Compose([
+            transforms.Resize((self.cfg.DATASET.resize, self.cfg.DATASET.resize)),  # 缩放
+            transforms.CenterCrop(self.cfg.DATASET.imagesize),  # 中心裁剪
+            transforms.ToTensor(),  # 转为Tensor（[C, H, W]，值归一化到0-1）
+            transforms.Normalize(mean=[0.485, 0.456, 0.406],  # ImageNet均值
+                                 std=[0.229, 0.224, 0.225])  # ImageNet方差
+        ])
+
+        # 1.3 预处理并增加batch维度（模型要求输入为[batch_size, C, H, W]）
+        image_tensor = image_transform(single_image).unsqueeze(0).to(self.device)  # shape: [1, 3, H, W]
+
+        # -------------------------- 2. 模型切换为评估模式 --------------------------
+        self.teacher_model.eval()
+        self.LiMR_model.eval()
+
+        # -------------------------- 3. 核心推理流程（与原evaluation一致） --------------------------
+        with torch.no_grad():  # 关闭梯度计算，加速推理
+            # 3.1 教师模型前向传播：提取多尺度特征
+            self.teacher_outputs_dict.clear()  # 清空历史特征
+            _ = self.teacher_model(image_tensor)  # 教师模型仅用于特征提取，输出无用
+            # 获取配置中指定层的特征
+            multi_scale_features = [
+                self.teacher_outputs_dict[key]
+                for key in self.cfg.TRAIN.LiMR.layers_to_extract_from
+            ]
+
+            # 3.2 LiMR模型前向传播：生成反向特征
+            reverse_features = self.LiMR_model(
+                image_tensor,
+                mask_ratio=self.cfg.TRAIN.LiMR.test_mask_ratio  # 测试时的mask比例（与训练配置一致）
+            )
+            # 获取与教师模型对应的反向特征
+            multi_scale_reverse_features = [
+                reverse_features[key]
+                for key in self.cfg.TRAIN.LiMR.layers_to_extract_from
+            ]
+
+            # 3.3 计算异常图（像素级异常分数）
+            # 注：image_tensor.shape[-1]为图片边长（H=W，因预处理已保证）
+            anomaly_map, _ = cal_anomaly_map(
+                multi_scale_features,
+                multi_scale_reverse_features,
+                out_size=image_tensor.shape[-1],
+                amap_mode='a'  # 与原evaluation一致的异常图计算模式
+            )
+
+            # 3.4 高斯滤波平滑异常图（减少噪声，与原evaluation一致）
+            anomaly_map_np = anomaly_map  # Tensor转numpy（shape: [1, H, W]）
+            anomaly_map_np[0] = gaussian_filter(anomaly_map_np[0], sigma=4)  # 单张图无需循环
+
+            # 3.5 计算图片级异常分数（取异常图最大值，与原evaluation逻辑一致）
+            img_level_score = np.max(anomaly_map_np.reshape(1, -1), axis=1)[0]
+
+            # 3.6 调整异常图格式（去除batch维度，便于后续使用）
+            anomaly_map_np = anomaly_map_np.squeeze(0)  # shape: [H, W]
+
+        # -------------------------- 4. 可选：像素级指标计算（需提供mask） --------------------------
+        pixel_metrics = None
+        if mask is not None:
+            # 4.1 统一mask格式并与异常图尺寸对齐
+            if isinstance(mask, np.ndarray):
+                # 调整mask尺寸与异常图一致（ nearest插值避免标签模糊）
+                mask = cv2.resize(
+                    mask,
+                    dsize=(anomaly_map_np.shape[1], anomaly_map_np.shape[0]),
+                    interpolation=cv2.INTER_NEAREST
+                )
+                mask = (mask > 0).astype(int)  # 确保二值化（0=正常，1=异常）
+            elif isinstance(mask, Image.Image):
+                # mask预处理（与图片尺寸一致）
+                mask_transform = transforms.Compose([
+                    transforms.Resize((self.cfg.DATASET.resize, self.cfg.DATASET.resize)),
+                    transforms.CenterCrop(self.cfg.DATASET.imagesize),
+                    transforms.ToTensor()  # 转为[1, H, W]
+                ])
+                mask = mask_transform(mask).squeeze(0).cpu().numpy()  # shape: [H, W]
+                mask = (mask > 0).astype(int)
+            else:
+                raise TypeError("不支持的mask格式！请输入 numpy.ndarray 或 PIL.Image.Image")
+
+            # 4.2 计算像素级AUROC（P-AUROC）
+            pixel_gt = mask.flatten()  # 标签展平
+            pixel_pred = anomaly_map_np.flatten()  # 预测分数展平
+            try:
+                pauroc = round(roc_auc_score(pixel_gt, pixel_pred), 3)
+            except ValueError:
+                # 若mask全为0或全为1（无正负样本），无法计算AUROC，设为-1
+                pauroc = -1
+                LOGGER.warning("mask全为正常或全为异常，无法计算P-AUROC")
+
+            # 4.3 计算PRO-AUROC（需图片级标签）
+            if img_label is None:
+                # 自动判断图片级标签：mask有异常像素则为1，否则为0
+                img_label = 1 if np.sum(mask) > 0 else 0
+            try:
+                # compute_pro输入格式：[异常图列表], [mask列表], [图片级标签列表]
+                aupro = compute_pro([anomaly_map_np], [mask], [img_label])[0]
+                aupro = round(aupro, 3)
+            except Exception as e:
+                aupro = -1
+                LOGGER.warning(f"计算PRO-AUROC失败: {str(e)}")
+
+            # 整理像素级指标
+            pixel_metrics = {
+                "P-AUROC": pauroc,  # 像素级AUROC
+                "PRO-AUROC": aupro  # 像素级PRO-AUROC
+            }
+
+        # -------------------------- 5. 可选：保存异常热力图 --------------------------
+        if save_path is not None:
+            # 确保保存目录存在
+            os.makedirs(os.path.dirname(save_path), exist_ok=True)
+
+            # 异常图归一化到0-255（便于显示）
+            # anomaly_norm = (anomaly_map_np - anomaly_map_np.min()) / (anomaly_map_np.max() - anomaly_map_np.min())
+            anomaly_uint8 = (anomaly_map_np * 255).astype(np.uint8)
+
+            # 转为Jet热力图（更直观）
+            anomaly_heatmap = cv2.applyColorMap(anomaly_uint8, cv2.COLORMAP_JET)
+            # （可选）与原图叠加显示（如需叠加，需先将原图缩放到异常图尺寸）
+            origin_resized = cv2.resize(np.array(single_image), (anomaly_heatmap.shape[1], anomaly_heatmap.shape[0]))
+            origin_bgr = cv2.cvtColor(origin_resized, cv2.COLOR_RGB2BGR)
+            blended = cv2.addWeighted(origin_bgr, 0.5, anomaly_heatmap, 0.5, 0)
+
+            # 保存热力图
+            cv2.imwrite(save_path, anomaly_heatmap)
+            cv2.imwrite(save_path.replace(".jpg", "_blended.jpg"), blended)
+            LOGGER.info(f"异常热力图已保存至: {save_path}")
+
+            # save_path的文件夹分离出来
+
+            file_dir = os.path.split(save_path)[0]
+            file_stem = os.path.splitext(os.path.basename(save_path))[0]
+
+
+            visualize_student_layers(multi_scale_reverse_features, 0, file_dir, file_stem, "student")
+            visualize_student_layers(multi_scale_features, 0, file_dir, file_stem, "teacher")
+
+
+        # -------------------------- 6. 整理返回结果 --------------------------
+        result = {
+            "image_level_anomaly_score": round(img_level_score, 4),
+            "anomaly_map": anomaly_map_np,  # [H, W] numpy数组，像素值为异常分数
+            "pixel_metrics": pixel_metrics  # 仅当提供mask时非None
+        }
+
+        return result
+
+
+
 
     def save_model_and_checkpoint(self,
                                   epoch,

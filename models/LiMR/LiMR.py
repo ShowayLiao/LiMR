@@ -188,15 +188,21 @@ class MaskedAutoencoderMobileViT(nn.Module):
     # encoder
     def forward_encoder(self, x, mask_ratio):
 
-        if self.cfg.TEST.enable:# for test phase, mask does not work
-            layers = self.encoder(x)
-            return layers,None,None
-        else:
-            masks, ids_keep_list, ids_restore_list = self.mask_everylayer(x, mask_ratio)
+        # if self.cfg.TEST.enable:# for test phase, mask does not work
+        #     layers = self.encoder(x)
+        #     return layers,None,None
+        # else:
+        #     masks, ids_keep_list, ids_restore_list = self.mask_everylayer(x, mask_ratio)
+        #
+        #     layers = self.encoder(x, masks,ids_keep_list,ids_restore_list)
+        #
+        #     return layers, masks, ids_restore_list
+        masks, ids_keep_list, ids_restore_list = self.mask_everylayer(x, mask_ratio)
 
-            layers = self.encoder(x, masks,ids_keep_list,ids_restore_list)
+        layers = self.encoder(x, masks,ids_keep_list,ids_restore_list)
 
-            return layers, masks, ids_restore_list
+        return layers, masks, ids_restore_list
+
 
     # FPN decoder
     def forward_decoder(self, x,mask=None):

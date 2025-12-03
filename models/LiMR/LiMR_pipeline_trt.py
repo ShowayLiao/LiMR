@@ -2,7 +2,7 @@ import torch
 from torchvision import transforms
 import tensorrt as trt
 import pycuda.driver as cuda
-import pycuda.autoinit# This is necessary for initializing CUDA driver
+
 import numpy as np
 from .utils import cal_anomaly_map
 import time
@@ -16,6 +16,7 @@ LOGGER = logging.getLogger(__name__)
 
 class LiMR_pipeline_trt:
     def __init__(self,cfg):
+        import pycuda.autoinit  # This is necessary for initializing CUDA driver
         self.cfg = cfg
         self.input_shape = (self.cfg.TEST_SETUPS.batch_size,3,self.cfg.DATASET.imagesize,self.cfg.DATASET.imagesize)
         self.device = cuda.Device(0)

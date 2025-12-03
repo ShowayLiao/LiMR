@@ -11,6 +11,11 @@ from tools import train
 
 LOGGER = logging.getLogger(__name__)
 
+import os
+
+os.environ["CUDA_LAUNCH_BLOCKING"] = "1"
+
+
 def main():
 
 

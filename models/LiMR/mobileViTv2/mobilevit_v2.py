@@ -4,6 +4,7 @@ from torch import nn
 import torch.nn.functional as F
 import argparse
 from typing import Dict, Tuple, Optional
+import torch
 
 from .BaseLayers import InvertedResidual, GlobalPool
 from .mobilevit_v2_block import MobileViTBlockv2 as Block
@@ -236,13 +237,30 @@ class MobileViTv2(nn.Module):
 
         results = []
 
+        # mask = masks[0]
+        # H_low = x.shape[2]
+        # H_high = mask.shape[2]
+        # batch_size = x.shape[0]
+        # #
+        # up_mask = (mask.reshape(-1, H_high, H_high).
+        #            unsqueeze(-1).repeat(1, 1, 1, H_low ** 2 // H_high ** 2).
+        #            reshape(-1,H_high,H_high,H_low // H_high,H_low // H_high).
+        #            permute(0, 1, 3, 2, 4).
+        #            reshape(batch_size, H_low, H_low).
+        #            unsqueeze(1))
+        #
+        # x = x * up_mask
+
+        # torch.save(x, 'feature-0.pt')
+
         x = self.conv_1(x)
         #print("l0",x.shape)
         for layer in self.layer_1:
             if masks is None:
                 x = layer(x, None)
             else:
-                x = layer(x,masks[0])# masks input doesn't operate in first two stage actually
+                # masks input operates only when mask_block is true, here in layer1, it is false
+                x = layer(x,masks[0])
         results.append(x)# 1/2 ,64*alpha
 
         #print("l1",x.shape)
@@ -251,15 +269,21 @@ class MobileViTv2(nn.Module):
                 x = layer(x, None)
             else:
                 x = layer(x,masks[1])
+
+        torch.save(x, 'feature.pt')
+
+        # torch.save(x*masks[1],'feature-mask.pt')
+
+
         results.append(x)# 1/4 ,128*alpha
         #print("l2",x.shape)
 
 
         for layer in self.layer_3:
-            if masks is None:# judge for evaluation
-                x = layer(x, None, None, None)
-            else:
-                x = layer(x,masks[2],ids_keep_list[2],ids_restore_list[2])
+            # if masks is None:# judge for evaluation
+            x = layer(x, None, None, None)
+            # else:
+            #     x = layer(x,masks[2],ids_keep_list[2],ids_restore_list[2])
         results.append(x)# 1/8 ,256*alpha
 
         #print('l3',x.shape)

@@ -40,13 +40,13 @@ def train(cfg=None):
 
 
     # --------------get test dataloader (include each category)------------------
-    if cfg.DATASET.name in ["aebad_S", "aebad_V", "mvtec"]:
+    if cfg.DATASET.name in ["aebad_S", "aebad_V", "mvtec", "material"]:
         if cfg.DATASET.name == "aebad_S":
             measured_list = ["same", "background", "illumination", "view"]
         elif cfg.DATASET.name == "aebad_V":
             measured_list = ["video1", "video2", "video3"]
         else:
-            measured_list = ["same"]
+            measured_list = ["video1"]
 
         test_dataloader_dict = {}
         for each_class in measured_list:

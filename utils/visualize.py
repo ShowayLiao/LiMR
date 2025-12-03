@@ -179,20 +179,26 @@ def normalize_feature(feature):
     return (feature - min_val) / (max_val - min_val + 1e-8)
 
 
+
+
+
+
+
+
 if __name__ == "__main__":
 
-    model = timm.create_model('wide_resnet50_2', pretrained=True)
+    model = timm.create_model('resnet34', pretrained=True)
     # model = timm.create_model('mobilevitv2_050', pretrained=True)
-    # model_chkpt = r"H:\lsw\abnormal-detection-of-blades-MMR_0.1022.lsw\LiMR\logs_and_models\aebad_S224\mobileViTMAE\benchmark-17b16(woONNX)-MMV_e-mFPN-layer4\54_2025_04_04_10_49\mobileViTMAE_benchmark-17b16(woONNX)-MMV_e-mFPN-layer4_weights_epoch_130.pth"
+    # model_chkpt = r"../best_student_model_175.pth"
     #
     # args = parse_args()
     # cfg = load_config(args, path_to_config=args.cfg_files[0])
     # cfg.TRAIN.enable = False
     # cfg.TEST.enable = True
-    # model = mobilevitMAE_base(cfg=cfg,
-    #                             scale_factors=cfg.TRAIN.LiMR.scale_factors,
-    #                             FPN_output_dim=cfg.TRAIN.LiMR.FPN_output_dim,
-    #                             alpha=cfg.TRAIN.LiMR.alpha)
+    # model = LiMR_base(cfg=cfg,
+    #                 scale_factors=cfg.TRAIN.LiMR.scale_factors,
+    #                 FPN_output_dim=cfg.TRAIN.LiMR.FPN_output_dim,
+    #                 alpha=cfg.TRAIN.LiMR.alpha)
     # checkpoint = torch.load(model_chkpt)
     # msg = model.load_state_dict(checkpoint['model_state_dict'], strict=False)
     # print(msg)
@@ -200,16 +206,17 @@ if __name__ == "__main__":
 
     visualizer = FeatureVisualizer(
         model=model,
-        target_layers=["layer1", "layer2", "layer3", "layer4"],
+        target_layers=["layer1", "layer2", "layer3"],
         img_size=224,
         # model_type='mymodel'
         # model_type='mobilevit'
+        model_type='resnet'
     )
 
     # 生成可视化结果
     visualizer.visualize_features(
-        image_path=r"H:\lsw\abnormal-detection-of-blades-MMR_0.1022.lsw\MMR\datasets\AeBAD\AeBAD_S\test\groove\background\IMG_8396.png",
-        save_prefix="demo"
+        image_path=r"H:\lsw\abnormal-detection-of-blades-MMR_0.1022.lsw\MMR\datasets\AeBAD\AeBAD_S\train\good\background\IMG_7287.png",
+        save_prefix="4-t"
     )
 
 

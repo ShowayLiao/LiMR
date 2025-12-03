@@ -35,7 +35,8 @@ def parse_args():
         "--cfg",
         dest="cfg_files",
         help="Path to the config files",
-        default=[r"./method_config/AeBAD_S/LiMR.yaml"],
+        # default=[r"./method_config/AeBAD_S/LiMR.yaml"],
+        default=[r"H:\lsw\LiMR\method_config\AeBAD_S\LiMR.yaml"],
         nargs="+",
     )
     # add from command line

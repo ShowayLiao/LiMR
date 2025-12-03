@@ -77,7 +77,7 @@ def LiMR_onnx():
         input_names=["input"],
         output_names=["output"],
         dynamic_axes={"input": {0: "batch_size"}, "output": {0: "batch_size"}},
-        opset_version=17,
+        opset_version=16,
     )
 
     torch.onnx.export(
@@ -87,7 +87,7 @@ def LiMR_onnx():
         input_names=["input"],
         output_names=["output"],
         dynamic_axes={"input": {0: "batch_size"}, "output": {0: "batch_size"}},
-        opset_version=17,
+        opset_version=16,
     )
 
     print("DONE")
@@ -140,7 +140,7 @@ def build_engine(onnx_path: str, engine_path: str) -> None:
 
 
 if __name__ == "__main__":
-    # LiMR_onnx()
+    LiMR_onnx()
     build_engine('./LiMR_student.onnx', './LiMR_student_16.engine')
     build_engine('./LiMR_teacher.onnx', './LiMR_teacher_16.engine')
 

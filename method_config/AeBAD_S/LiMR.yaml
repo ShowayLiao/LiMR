@@ -8,7 +8,7 @@ RNG_SEED: 54
 
 # set output root dir
 OUTPUT_ROOT_DIR: './logs_and_models'
-OUTPUT_DIR: 'aebad_S224/LiMR/original/54_2025_07_02_16_23'
+#OUTPUT_DIR: 'aebad_S224/LiMR/original/54_2025_07_02_16_23'
 
 
 DATASET:
@@ -22,7 +22,7 @@ TRAIN:
   enable: False
   save_model: True
   method: 'LiMR'
-  change: 'original'
+  change: 'ONNX'
   dataset_path: './datasets/AeBAD'
   backbone: 'resnet34'
 
@@ -40,12 +40,12 @@ TRAIN:
     alpha : 1.75
     decoder : 'fpn'
     block_attn_dropout: 0.0
-    block_ffn_dropout: 0.1
-    block_dropout: 0.4
+    block_ffn_dropout: 0.0
+    block_dropout: 0.1
 
 
 TRAIN_SETUPS:
-  batch_size: 2
+  batch_size: 12
   num_workers: 6
   learning_rate: 0.001
   epochs: 2
@@ -56,19 +56,21 @@ TRAIN_SETUPS:
   patience: 10
 
 TEST:
-  # only test is true
+  # When only test, the option is true
   enable: True
   save_segmentation_images: True
-  model_path: "./logs_and_models/aebad_S224/LiMR/original/54_2025_07_02_16_23/mobileViTMAE_benchmark-17b16-LiMR-175-resnet34_weights_epoch_120.pth"
+#  model_path: r"H:\lsw\abnormal-detection-of-blades-MMR_0.1022.lsw\MMR\logs_and_models\aebad_S224\mobileViTMAE\ablation-LiMR-175-SMR-g-n2\54_2025_06_12_16_02\mobileViTMAE_ablation-LiMR-175-SMR-g-n2_weights_epoch_140.pth"
+  model_path: "./best_student_model_175.pth"
+#  model_path: r"H:\lsw\abnormal-detection-of-blades-MMR_0.1022.lsw\MMR\logs_and_models\aebad_S224\mobileViTMAE\ablation-LiMR-SMR-h\54_2025_06_15_20_47\mobileViTMAE_ablation-LiMR-SMR-h_weights_epoch_140.pth"
   method: 'LiMR'
   dataset_path: './datasets/AeBAD'
   pixel_mode_verify: True
   TensorRT:
-    enable: True
-    stu_path: './LiMR_student.engine'
-    tea_path: './LiMR_teacher.engine'
+    enable: False
+    stu_path: './LiMR_student_16.engine'
+    tea_path: './LiMR_teacher_16.engine'
   VISUALIZE:
     Random_sample: True
 
 TEST_SETUPS:
-  batch_size: 1
+  batch_size: 16

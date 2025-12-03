@@ -15,7 +15,9 @@ LOGGER = logging.getLogger(__name__)
 _DATASETS = {"mvtec": ["datasets.mvtec", "MVTecDataset"],
              "aebad_S": ["datasets.aebad_S", "AeBAD_SDataset"],
              "aebad_V": ["datasets.aebad_V", "AeBAD_VDataset"],
-             "mydata": ["datasets.mydata", "MyDataDataset"]}
+             "mydata": ["datasets.mydata", "MyDataDataset"],
+             "material": ["datasets.material", "AeBAD_VDataset"],
+             }
 
 
 class DatasetSplit(Enum):

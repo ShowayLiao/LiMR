@@ -9,6 +9,7 @@ import numpy as np
 import onnxruntime as ort
 import time
 from torch.nn import functional as F
+from tools.load_method import LiMR
 
 
 def caculate_time(student,teacher,dummy_input,device=torch.device("cuda"),cfg=None):
@@ -423,6 +424,29 @@ def MMR_main():
     # ----------------计算时间------------------
     caculate_time(student, teacher, dummy_input, device=device, cfg=cfg)
 
+
+
+def single_LiMR_inference(input_img_path,input_mask_path,save_path):
+
+    args = parse_args()
+    cfg = load_config(args, path_to_config=args.cfg_files[0])
+    device = torch.device("cuda")
+
+    pipeline,_ = LiMR(cfg=cfg)
+
+    img = cv2.imread(input_img_path)
+
+    mask = cv2.imread(input_mask_path)
+
+    result = pipeline.infer_single_image(img,mask,save_path,img_label=0)
+
+    print(f"图片级异常分数: {result['image_level_anomaly_score']}")
+    print(f"异常图尺寸: {result['anomaly_map'].shape}")
+    if result["pixel_metrics"] is not None:
+        print(f"像素级P-AUROC: {result['pixel_metrics']['P-AUROC']}")
+        print(f"像素级PRO-AUROC: {result['pixel_metrics']['PRO-AUROC']}")
+
+
 def cal_anomaly_map(fs_list, ft_list, out_size=224, amap_mode='mul'):# ft_list: MMR模型输出的特征图，fs_list: teacher输出的特征图
     if amap_mode == 'mul':
         anomaly_map = np.ones([fs_list[0].shape[0], out_size, out_size])
@@ -463,5 +487,9 @@ if __name__ == '__main__':
     #---------tensorrt--------
     # inference_trt('./LiMR_student.engine', np.random.randn(1, 3, 224, 224).astype(np.float32))
     # caculate_time_trt('./LiMR_student.engine', './LiMR_teacher.engine', np.random.randn(1, 3, 224, 224).astype(np.float32))
-    inference_single_img_trt('./LiMR_student_16.engine', './LiMR_teacher_16.engine', 'IMG_9260.png')
+    # inference_single_img_trt('./LiMR_student_16.engine', './LiMR_teacher_16.engine', 'IMG_9260.png')
+
+    single_LiMR_inference(r'H:\lsw\abnormal-detection-of-blades-MMR_0.1022.lsw\MMR\datasets\AeBAD\AeBAD_S\train\good\background\IMG_7287.png',
+                          r'H:\lsw\abnormal-detection-of-blades-MMR_0.1022.lsw\MMR\logs_and_models\aebad_S224\mobileViTMAE\ablation-LiMR-175-b\54_2025_06_14_12_43\test_output\image_save\good\IMG_7599_mask.jpg',
+                          './rec_result_3.png')
 
