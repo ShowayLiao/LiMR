@@ -285,9 +285,10 @@ class INP_FormerModel(nn.Module):
             During inference: InferenceBatch with anomaly scores and maps
         """
         # Prepare tokens through encoder
+        image_size = (x.shape[2], x.shape[3])
         h_patches = x.shape[2] // self.encoder.patch_size
         w_patches = x.shape[3] // self.encoder.patch_size
-        x = self.encoder.prepare_tokens(x)
+        x = self.encoder.prepare_tokens_with_masks(x)
         B, L, _ = x.shape
 
         # Extract encoder features from target layers
@@ -347,7 +348,6 @@ class INP_FormerModel(nn.Module):
             return total_loss
 
         # Inference mode: generate anomaly maps and scores
-        image_size = (x.shape[2], x.shape[3])
         anomaly_map, _ = self.calculate_anomaly_maps(en, de, out_size=image_size)
         anomaly_map_resized = anomaly_map.clone()
 

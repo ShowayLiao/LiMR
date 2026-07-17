@@ -114,7 +114,7 @@ class SoftMiningLoss(torch.nn.Module):
         Returns:
             torch.Tensor: Modified gradient.
         """
-        # Expand factor to match gradient shape
-        factor = factor.expand_as(grad)
+        # Expand factor to match gradient shape (add channel dim)
+        factor = factor.unsqueeze(1).expand_as(grad)
         # Apply difficulty weighting to gradient
         return grad * factor
