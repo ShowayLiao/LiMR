@@ -50,7 +50,7 @@
 
 This is the anomalib-integrated implementation of **LiMR**, a lightweight teacher-student architecture for visual anomaly detection. The model uses a frozen teacher encoder to extract multi-scale features, while a lightweight MobileViTv2-based student encoder-decoder reconstructs semantic features under masked reconstruction — achieving competitive accuracy at high throughput.
 
-> 📄 **Original repository:** [ShowayLiao/LiMR](https://github.com/ShowayLiao/LiMR)
+> 📄 **Original repository:** [ShowayLiao/LiMR](https://github.com/ShowayLiao/LiMR/tree/main)
 > 📘 **Anomalib upstream README:** [originalREADME.md](originalREADME.md)
 
 ---
