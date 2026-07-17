@@ -44,6 +44,7 @@
 - [📂 Output Structure](#-output-structure)
 - [⚡ TensorRT High-Speed Deployment](#-tensorrt-high-speed-deployment)
 - [❓ FAQ](#-faq)
+- [📚 Reference](#-reference)
   - [Acknowledgements](#acknowledgements)
 
 ---
@@ -114,6 +115,7 @@ LiMR maintains competitive accuracy on the standard MVTec AD benchmark.
 ## ⌨️ Training
 
 ```bash
+
 # Activate environment
 .venv\Scripts\activate.bat
 
@@ -309,20 +311,20 @@ AeBAD testing automatically iterates over all `domain_shift` subdirectories (`sa
 
 ---
 
-<!-- # 📚 Reference
+# 📚 Reference
 
 If you find LiMR useful in your research or work, please cite the original paper:
 
 ```tex
-@inproceedings{liao2024limr,
-  title     = {Lightweight Masked Reconstruction for Real-Time Sensor-Driven
-               Anomaly Detection in Industrial IoT},
-  author    = {Liao, Showay and others},
-  booktitle = {Proceedings of the IEEE/CVF Conference on Computer Vision
-               and Pattern Recognition (CVPR)},
-  year      = {2024},
+@article{liao2026limr,
+  author  = {Shaowei Liao and Wenyong Yu and Shaolin Liao},
+  title   = {Lightweight Masked Reconstruction for Real-Time Sensor-Driven
+             Anomaly Detection in Industrial IoT},
+  journal = {IEEE Internet of Things Journal},
+  year    = {2026},
+  doi     = {10.1109/JIOT.2026.3712733}
 }
-``` -->
+```
 
 ## Acknowledgements
 

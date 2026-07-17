@@ -40,6 +40,7 @@
 - [📂 输出结构](#-输出结构)
 - [⚡ TensorRT 高速部署](#-tensorrt-高速部署)
 - [❓ 常见问题](#-常见问题)
+- [📚 参考文献](#-参考文献)
   - [致谢](#致谢)
 
 ---
@@ -303,6 +304,21 @@ AeBAD 测试会自动遍历所有 `domain_shift` 子目录（`same`、`backgroun
 </details>
 
 ---
+
+# 📚 参考文献
+如果您的研究或工作中使用 LiMR，请引用原始论文：
+
+```tex
+@article{liao2026limr,
+  author  = {Shaowei Liao and Wenyong Yu and Shaolin Liao},
+  title   = {Lightweight Masked Reconstruction for Real-Time Sensor-Driven
+             Anomaly Detection in Industrial IoT},
+  journal = {IEEE Internet of Things Journal},
+  year    = {2026},
+  doi     = {10.1109/JIOT.2026.3712733}
+}
+```
+
 
 ## 致谢
 
