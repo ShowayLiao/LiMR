@@ -48,6 +48,7 @@ from .realiad import RealIAD
 from .tabular import Tabular
 from .vad import VAD
 from .visa import Visa
+from .zipperad import ZipperAD
 
 
 class ImageDataFormat(str, Enum):
@@ -110,4 +111,5 @@ __all__ = [
     "Tabular",
     "VAD",
     "Visa",
+    "ZipperAD",
 ]

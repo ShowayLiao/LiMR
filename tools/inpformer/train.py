@@ -35,7 +35,7 @@ from anomalib.callbacks import TimerCallback
 from anomalib.data import (
     AeBAD_S, AeBAD_V,
     BMAD, BTech, Folder, Kolektor, MPDD, MVTecAD, MVTecAD2, MVTecLOCO,
-    RealIAD, VAD, Visa,
+    RealIAD, VAD, Visa, ZipperAD,
 )
 from anomalib.engine import Engine
 from anomalib.metrics import AUPRO, AUROC, Evaluator
@@ -69,7 +69,6 @@ def _build_standard_dataset(args):
     return {
         "root": args.root,
         "category": args.category,
-        "image_size": (args.image_size, args.image_size),
         "train_batch_size": args.train_batch_size,
         "eval_batch_size": args.eval_batch_size,
         "num_workers": args.num_workers,
@@ -161,6 +160,7 @@ DATASET_REGISTRY = {
     "mpdd":        (MPDD,       _build_standard_dataset),
     "vad":         (VAD,        _build_standard_dataset),
     "visa":        (Visa,       _build_standard_dataset),
+    "zipperad":    (ZipperAD,   _build_standard_dataset),
     "realiad":     (RealIAD,    _build_realiad),
     "kolektor":    (Kolektor,   _build_kolektor),
     "folder":      (Folder,     _build_folder),

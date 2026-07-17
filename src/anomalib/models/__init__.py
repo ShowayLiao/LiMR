@@ -73,6 +73,7 @@ from .image import (
     Fastflow,
     Fre,
     Ganomaly,
+    INP_Former,
     Padim,
     Patchcore,
     ReverseDistillation,

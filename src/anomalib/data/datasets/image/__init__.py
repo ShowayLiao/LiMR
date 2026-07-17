@@ -42,6 +42,7 @@ from .realiad import RealIADDataset
 from .tabular import TabularDataset
 from .vad import VADDataset
 from .visa import VisaDataset
+from .zipperad import ZipperADDataset
 
 __all__ = [
     "AeBADSDataset",
@@ -60,4 +61,5 @@ __all__ = [
     "TabularDataset",
     "VADDataset",
     "VisaDataset",
+    "ZipperADDataset",
 ]

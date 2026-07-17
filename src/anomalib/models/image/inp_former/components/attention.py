@@ -8,6 +8,7 @@ This module implements the two key attention mechanisms used in INP-Former:
 2. Aggregation_Attention: Used in the INP Extractor to aggregate features into INPs
 """
 
+import torch
 from torch import nn
 import torch.nn.functional as F
 
