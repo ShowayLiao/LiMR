@@ -46,7 +46,7 @@
 
 这是基于 anomalib 框架集成的 **LiMR** 实现，一种用于视觉异常检测的轻量级教师-学生架构。模型使用冻结的教师编码器提取多尺度特征，同时轻量级 MobileViTv2 学生编码器-解码器在掩码重建下重构语义特征——以高吞吐量实现有竞争力的检测精度。
 
-> 📄 **原始仓库：** [ShowayLiao/LiMR](https://github.com/ShowayLiao/LiMR)
+> 📄 **原始仓库：** [ShowayLiao/LiMR](https://github.com/ShowayLiao/LiMR/tree/main)
 > 📘 **Anomalib 上游 README：** [originalREADME.md](originalREADME.md)
 
 ---
