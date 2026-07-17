@@ -9,7 +9,7 @@
 </p>
 
 <p align="center">
-  <a href="">📄 论文</a> &nbsp;|&nbsp;
+  <a href="https://ieeexplore.ieee.org/document/11606365">📄 论文</a> &nbsp;|&nbsp;
   <a href="https://github.com/ShowayLiao/LiMR_cpp">⚡ C++ 实现</a>
 </p>
 
