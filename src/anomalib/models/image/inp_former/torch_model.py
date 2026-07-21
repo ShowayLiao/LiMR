@@ -318,9 +318,6 @@ class INP_FormerModel(nn.Module):
         for blk in self.aggregation:
             agg_prototype = blk(agg_prototype, x)
 
-        # Calculate INP Coherence Loss
-        g_loss = self.gather_loss(x, agg_prototype)
-
         # Bottleneck processing
         for blk in self.bottleneck:
             x = blk(x)
@@ -330,17 +327,18 @@ class INP_FormerModel(nn.Module):
         for blk in self.decoder:
             x = blk(x, agg_prototype)
             de_list.append(x)
-        de_list = de_list[::-1]
-
         # Fuse features for spatial output
+        decoder_depth = len(self.decoder)
         en = [self._fuse_feature([en_list[idx] for idx in idxs]) for idxs in self.fuse_layer_encoder]
-        de = [self._fuse_feature([de_list[idx] for idx in idxs]) for idxs in self.fuse_layer_decoder]
+        de = [self._fuse_feature([de_list[decoder_depth - 1 - idx] for idx in idxs]) for idxs in self.fuse_layer_decoder]
 
         # Process features for spatial output
         en = self._process_features_for_spatial_output(en, h_patches, w_patches)
         de = self._process_features_for_spatial_output(de, h_patches, w_patches)
 
         if self.training:
+            # Calculate INP Coherence Loss
+            g_loss = self.gather_loss(x, agg_prototype)
             # Calculate Soft Mining Loss
             loss = self.soft_mining_loss(en, de)
             # Total loss: Soft Mining Loss + 0.2 * INP Coherence Loss

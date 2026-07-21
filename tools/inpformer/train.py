@@ -38,7 +38,7 @@ from anomalib.data import (
     RealIAD, VAD, Visa, ZipperAD,
 )
 from anomalib.engine import Engine
-from anomalib.metrics import AUPRO, AUROC, Evaluator
+from anomalib.metrics import AUPRO, AUPR, AUROC, F1Max, PBn, Evaluator
 from anomalib.models import INP_Former
 
 try:
@@ -192,7 +192,7 @@ def parse_args() -> argparse.Namespace:
                         help="训练批次大小")
     parser.add_argument("--eval-batch-size", type=int, default=16,
                         help="评估批次大小")
-    parser.add_argument("--num-workers", type=int, default=8,
+    parser.add_argument("--num-workers", type=int, default=4,
                         help="数据加载线程数")
 
     # ---- RealIAD 专用参数 ----
@@ -319,63 +319,39 @@ def measure_inference_speed(
     print("推理速度测量")
     print("=" * 80)
 
-    datamodule.setup("test")
-
     model = model.to(device)
     model.eval()
     use_cuda = device == "cuda" and torch.cuda.is_available()
 
-    speed_num_workers = min(datamodule.num_workers, 4)
-
-    # ---- 预热 ----
+    # ---- 预热 + 测量 (复用同一个 DataLoader) ----
     print(f"预热阶段 ({warmup} 次迭代)...")
-    warmup_loader = datamodule.test_dataloader()
-    with torch.no_grad():
-        for i, batch in enumerate(warmup_loader):
-            if i >= warmup:
-                break
-            images = batch["image"].to(device)
-            _ = model(images)
-            del images
-    del warmup_loader
-    gc.collect()
-    if use_cuda:
-        torch.cuda.empty_cache()
+    datamodule.setup("test")
+    test_loader = datamodule.test_dataloader()
 
-    # ---- 测量 ----
-    _original_num_workers = datamodule.num_workers
-    datamodule.num_workers = speed_num_workers
-    measure_loader = datamodule.test_dataloader()
-    datamodule.num_workers = _original_num_workers
-
-    print(f"测量阶段 ({iterations} 次迭代, num_workers={speed_num_workers})...")
+    total_iterations = warmup + iterations
     total_time_e2e = 0.0
     total_time_pure = 0.0
     total_images = 0
 
     with torch.no_grad():
-        for i, batch in enumerate(measure_loader):
-            if i >= iterations:
+        for i, batch in enumerate(test_loader):
+            if i >= total_iterations:
                 break
 
             batch_size = batch["image"].shape[0]
-            total_images += batch_size
 
             if use_cuda:
-                # GPU 高精度计时（cuda.Event）
                 e0 = torch.cuda.Event(enable_timing=True)
                 e1 = torch.cuda.Event(enable_timing=True)
                 e2 = torch.cuda.Event(enable_timing=True)
                 e3 = torch.cuda.Event(enable_timing=True)
 
-                # 总体延迟：数据传输 + 推理
                 e0.record()
                 images = batch["image"].to(device)
                 _ = model(images)
                 e1.record()
                 torch.cuda.synchronize()
 
-                # 纯推理：重新传输后仅推理
                 images = batch["image"].to(device)
                 e2.record()
                 _ = model(images)
@@ -386,7 +362,6 @@ def measure_inference_speed(
                 iter_pure = e2.elapsed_time(e3) / 1000.0
                 del e0, e1, e2, e3
             else:
-                # CPU 计时
                 t0 = time.perf_counter()
                 images = batch["image"].to(device)
                 _ = model(images)
@@ -397,17 +372,22 @@ def measure_inference_speed(
                 _ = model(images)
                 iter_pure = time.perf_counter() - t2
 
+            if i < warmup:
+                del images
+                continue
+
             total_time_e2e += iter_e2e
             total_time_pure += iter_pure
+            total_images += batch_size
 
             del images
-            if (i + 1) % 10 == 0:
-                print(f"  iter {i+1}/{iterations}: "
+            if (i - warmup + 1) % 10 == 0:
+                print(f"  iter {i - warmup + 1}/{iterations}: "
                       f"e2e={iter_e2e*1000:.2f}ms, "
                       f"pure={iter_pure*1000:.2f}ms, "
                       f"batch={batch_size}")
 
-    del measure_loader
+    del test_loader
     gc.collect()
     if use_cuda:
         torch.cuda.empty_cache()
@@ -471,9 +451,16 @@ def main():
     # ---- 构建评估器 ----
     evaluator = Evaluator(
         test_metrics=[
-            AUPRO(fields=["anomaly_map", "gt_mask"], prefix="pixel_"),
-            AUROC(fields=["anomaly_map", "gt_mask"], prefix="pixel_"),
-            AUROC(fields=["pred_score", "gt_label"], prefix="image_"),
+            # --- 像素级指标 (pixel-level) ---
+            AUPRO(fields=["anomaly_map", "gt_mask"], prefix="pixel_"),      # PRO-AUC: 缺陷区域发现能力
+            AUROC(fields=["anomaly_map", "gt_mask"], prefix="pixel_"),      # Pixel AUROC: 像素级定位能力
+            AUPR(fields=["anomaly_map", "gt_mask"], prefix="pixel_"),        # Pixel AUPR: 缺陷区域纯净度
+            F1Max(fields=["anomaly_map", "gt_mask"], prefix="pixel_"),       # Pixel F1-max: 缺陷分割质量
+            # --- 图像级指标 (image-level) ---
+            AUROC(fields=["pred_score", "gt_label"], prefix="image_"),       # Image AUROC: 图片级异常判断能力
+            AUPR(fields=["pred_score", "gt_label"], prefix="image_"),         # Image AUPR: 异常筛选纯度
+            F1Max(fields=["pred_score", "gt_label"], prefix="image_"),        # Image F1-max: 实际NG/OK判断能力
+            PBn(fpr=0.05, fields=["pred_score", "gt_label"]),                # Recall@FPR=5%: 工业漏检控制能力
         ],
     )
 

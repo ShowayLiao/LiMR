@@ -30,7 +30,7 @@ from anomalib.data import (
     RealIAD, VAD, Visa,
 )
 from anomalib.engine import Engine
-from anomalib.metrics import AUPRO, AUROC, Evaluator
+from anomalib.metrics import AUPRO, AUPR, AUROC, F1Max, PBn, Evaluator
 from anomalib.models import Supersimplenet
 
 
@@ -300,9 +300,16 @@ def main():
 
     evaluator = Evaluator(
         test_metrics=[
-            AUPRO(fields=["anomaly_map", "gt_mask"], prefix="pixel_"),
-            AUROC(fields=["anomaly_map", "gt_mask"], prefix="pixel_"),
-            AUROC(fields=["pred_score", "gt_label"], prefix="image_"),
+            # --- 像素级指标 (pixel-level) ---
+            AUPRO(fields=["anomaly_map", "gt_mask"], prefix="pixel_"),      # PRO-AUC: 缺陷区域发现能力
+            AUROC(fields=["anomaly_map", "gt_mask"], prefix="pixel_"),      # Pixel AUROC: 像素级定位能力
+            AUPR(fields=["anomaly_map", "gt_mask"], prefix="pixel_"),        # Pixel AUPR: 缺陷区域纯净度
+            F1Max(fields=["anomaly_map", "gt_mask"], prefix="pixel_"),       # Pixel F1-max: 缺陷分割质量
+            # --- 图像级指标 (image-level) ---
+            AUROC(fields=["pred_score", "gt_label"], prefix="image_"),       # Image AUROC: 图片级异常判断能力
+            AUPR(fields=["pred_score", "gt_label"], prefix="image_"),         # Image AUPR: 异常筛选纯度
+            F1Max(fields=["pred_score", "gt_label"], prefix="image_"),        # Image F1-max: 实际NG/OK判断能力
+            PBn(fpr=0.05, fields=["pred_score", "gt_label"]),                # Recall@FPR=5%: 工业漏检控制能力
         ],
     )
 

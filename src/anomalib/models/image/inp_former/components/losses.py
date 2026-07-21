@@ -8,7 +8,6 @@ This module implements the loss functions used in INP-Former:
 2. SoftMiningLoss: Focuses training on difficult-to-reconstruct regions
 """
 
-from functools import partial
 import torch
 import torch.nn.functional as F
 
@@ -89,32 +88,17 @@ class SoftMiningLoss(torch.nn.Module):
             # Calculate difficulty weight factor
             factor = (point_dist / mean_dist) ** self.gamma
             
-            # Register hook to modify gradients during backpropagation
-            partial_func = partial(self._modify_grad, factor=factor)
-            de_.register_hook(partial_func)
+            # Apply factor to scale gradients without changing forward value
+            # de_ * f + de_.detach() * (1-f) = de_ in forward, grad *= f in backward
+            factor_d = factor.detach().unsqueeze(1)
+            de_scaled = de_ * factor_d + de_.detach() * (1.0 - factor_d)
             
             # Calculate batch-wise cosine loss
             loss = 1.0 - F.cosine_similarity(
                 en_.reshape(en_.shape[0], -1),
-                de_.reshape(de_.shape[0], -1)
+                de_scaled.reshape(de_scaled.shape[0], -1)
             )
             total_loss += loss.mean()
         
         # Average loss across all feature layers
         return total_loss / len(encoder_features)
-
-    @staticmethod
-    def _modify_grad(grad: torch.Tensor, factor: torch.Tensor) -> torch.Tensor:
-        """Modify gradients based on difficulty factors.
-
-        Args:
-            grad (torch.Tensor): Original gradient.
-            factor (torch.Tensor): Difficulty weight factors.
-
-        Returns:
-            torch.Tensor: Modified gradient.
-        """
-        # Expand factor to match gradient shape (add channel dim)
-        factor = factor.unsqueeze(1).expand_as(grad)
-        # Apply difficulty weighting to gradient
-        return grad * factor

@@ -18,6 +18,7 @@
 """
 
 import argparse
+import gc
 import json
 import time
 from pathlib import Path
@@ -26,7 +27,7 @@ import torch
 
 from anomalib.data import MVTecAD, Visa
 from anomalib.engine import Engine
-from anomalib.metrics import AUPRO, AUROC, Evaluator
+from anomalib.metrics import AUPRO, AUPR, AUROC, F1Max, PBn, Evaluator
 from anomalib.models import INP_Former
 
 
@@ -57,7 +58,7 @@ def parse_args() -> argparse.Namespace:
                         help="中心裁剪尺寸")
     parser.add_argument("--eval-batch-size", type=int, default=16,
                         help="评估批次大小")
-    parser.add_argument("--num-workers", type=int, default=8,
+    parser.add_argument("--num-workers", type=int, default=4,
                         help="数据加载线程数")
 
     # ============================================================
@@ -149,36 +150,26 @@ def measure_inference_speed(
     print("推理速度测量")
     print("=" * 80)
 
-    datamodule.setup("test")
-    test_dataloader = datamodule.test_dataloader()
-
     model = model.to(device)
     model.eval()
-
     use_cuda = device == "cuda" and torch.cuda.is_available()
 
-    # ---- 预热 ----
+    # ---- 预热 + 测量 (复用同一个 DataLoader) ----
     print(f"预热阶段 ({warmup} 次迭代)...")
-    with torch.no_grad():
-        for i, batch in enumerate(test_dataloader):
-            if i >= warmup:
-                break
-            images = batch["image"].to(device)
-            _ = model(images)
+    datamodule.setup("test")
+    test_loader = datamodule.test_dataloader()
 
-    # ---- 测量 ----
-    print(f"测量阶段 ({iterations} 次迭代)...")
+    total_iterations = warmup + iterations
     total_time_e2e = 0.0
     total_time_pure = 0.0
     total_images = 0
 
     with torch.no_grad():
-        for i, batch in enumerate(test_dataloader):
-            if i >= iterations:
+        for i, batch in enumerate(test_loader):
+            if i >= total_iterations:
                 break
 
             batch_size = batch["image"].shape[0]
-            total_images += batch_size
 
             if use_cuda:
                 e0 = torch.cuda.Event(enable_timing=True)
@@ -200,6 +191,7 @@ def measure_inference_speed(
 
                 iter_e2e = e0.elapsed_time(e1) / 1000.0
                 iter_pure = e2.elapsed_time(e3) / 1000.0
+                del e0, e1, e2, e3
             else:
                 t0 = time.perf_counter()
                 images = batch["image"].to(device)
@@ -211,14 +203,25 @@ def measure_inference_speed(
                 _ = model(images)
                 iter_pure = time.perf_counter() - t2
 
+            if i < warmup:
+                del images
+                continue
+
             total_time_e2e += iter_e2e
             total_time_pure += iter_pure
+            total_images += batch_size
 
-            if (i + 1) % 10 == 0:
-                print(f"  iter {i+1}/{iterations}: "
+            del images
+            if (i - warmup + 1) % 10 == 0:
+                print(f"  iter {i - warmup + 1}/{iterations}: "
                       f"e2e={iter_e2e*1000:.2f}ms, "
                       f"pure={iter_pure*1000:.2f}ms, "
                       f"batch={batch_size}")
+
+    del test_loader
+    gc.collect()
+    if use_cuda:
+        torch.cuda.empty_cache()
 
     avg_e2e_per_img = total_time_e2e / total_images * 1000
     avg_pure_per_img = total_time_pure / total_images * 1000
@@ -266,9 +269,16 @@ def main():
     # ---- 评估器 ----
     evaluator = Evaluator(
         test_metrics=[
-            AUPRO(fields=["anomaly_map", "gt_mask"], prefix="pixel_"),
-            AUROC(fields=["anomaly_map", "gt_mask"], prefix="pixel_"),
-            AUROC(fields=["pred_score", "gt_label"], prefix="image_"),
+            # --- 像素级指标 (pixel-level) ---
+            AUPRO(fields=["anomaly_map", "gt_mask"], prefix="pixel_"),      # PRO-AUC: 缺陷区域发现能力
+            AUROC(fields=["anomaly_map", "gt_mask"], prefix="pixel_"),      # Pixel AUROC: 像素级定位能力
+            AUPR(fields=["anomaly_map", "gt_mask"], prefix="pixel_"),        # Pixel AUPR: 缺陷区域纯净度
+            F1Max(fields=["anomaly_map", "gt_mask"], prefix="pixel_"),       # Pixel F1-max: 缺陷分割质量
+            # --- 图像级指标 (image-level) ---
+            AUROC(fields=["pred_score", "gt_label"], prefix="image_"),       # Image AUROC: 图片级异常判断能力
+            AUPR(fields=["pred_score", "gt_label"], prefix="image_"),         # Image AUPR: 异常筛选纯度
+            F1Max(fields=["pred_score", "gt_label"], prefix="image_"),        # Image F1-max: 实际NG/OK判断能力
+            PBn(fpr=0.05, fields=["pred_score", "gt_label"]),                # Recall@FPR=5%: 工业漏检控制能力
         ],
     )
 
