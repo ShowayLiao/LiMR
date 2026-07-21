@@ -7,9 +7,9 @@ python tools\inpformer\train.py ^
     --root I:\exp\datasets\AeBAD\AeBAD_S ^
     --category AeBAD_S ^
     --image-size 256 ^
-    --train-batch-size 12 ^
-    --eval-batch-size 16 ^
-    --num-workers 8 ^
+    --train-batch-size 6 ^
+    --eval-batch-size 6 ^
+    --num-workers 4 ^
     --aebad-s-domain-shift same ^
     --encoder-name dinov2reg_vit_base_14 ^
     --inp-num 6 ^
