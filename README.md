@@ -116,35 +116,35 @@ LiMR maintains competitive accuracy on the standard MVTec AD benchmark.
 
 ```bash
 
-# Activate environment
-.venv\Scripts\activate.bat
+# Sync environment (first time only)
+uv sync --extra cu126
 
 # MVTec (single category)
-python tools\limr\train.py --dataset mvtec --root ./datasets/MVTec --category bottle \
+uv run python tools\limr\train.py --dataset mvtec --root ./datasets/MVTec --category bottle \
     --image-size 224 --backbone resnet50 --alpha 1.75 --epochs 200
 
 # AeBAD-S
-python tools\limr\train.py --dataset aebad_s --root I:\exp\datasets\AeBAD\AeBAD_S \
+uv run python tools\limr\train.py --dataset aebad_s --root I:\exp\datasets\AeBAD\AeBAD_S \
     --category AeBAD_S --image-size 256 --backbone resnet34 --alpha 1.75 \
     --fpn-output-dim 64 128 256 512 --block-dropout 0.0 --block-ffn-dropout 0.0 \
     --block-attn-dropout 0.0 --frozen-stages 3 --epochs 200 --seed 54
 
 # AeBAD-V
-python tools\limr\train.py --dataset aebad_v --root I:\exp\datasets\AeBAD\AeBAD_V \
+uv run python tools\limr\train.py --dataset aebad_v --root I:\exp\datasets\AeBAD\AeBAD_V \
     --category AeBAD_V --image-size 256 --backbone resnet34 --alpha 1.75 \
     --fpn-output-dim 64 128 256 512 --block-dropout 0.0 --block-ffn-dropout 0.0 \
     --block-attn-dropout 0.0 --frozen-stages 3 --epochs 200 --seed 54
 
 # RealIAD
-python tools\limr\train.py --dataset realiad --root ./datasets/RealIAD --category <category> \
+uv run python tools\limr\train.py --dataset realiad --root ./datasets/RealIAD --category <category> \
     --realiad-resolution 256 --realiad-json ./datasets/RealIAD/RealIAD.json
 
 # VISA
-python tools\limr\train.py --dataset visa --root ./datasets/VISA --category candle \
+uv run python tools\limr\train.py --dataset visa --root ./datasets/VISA --category candle \
     --image-size 224 --backbone resnet50
 
 # Folder (custom dataset)
-python tools\limr\train.py --dataset folder --root ./datasets/my_data \
+uv run python tools\limr\train.py --dataset folder --root ./datasets/my_data \
     --folder-normal-dir normal --folder-abnormal-dir abnormal --folder-mask-dir mask \
     --category my_dataset
 ```
@@ -153,11 +153,11 @@ python tools\limr\train.py --dataset folder --root ./datasets/my_data \
 
 ```bash
 # Test anomalib checkpoint (.ckpt)
-python tools\limr\test.py --dataset mvtec --root ./datasets/MVTec --category bottle \
+uv run python tools\limr\test.py --dataset mvtec --root ./datasets/MVTec --category bottle \
     --image-size 224 --backbone resnet50 --alpha 1.75 --checkpoint ./output_limr/xxx.ckpt
 
 # Test original LiMR weights (.pth)
-python tools\limr\test.py --dataset aebad_s --root I:\exp\datasets\AeBAD\AeBAD_S \
+uv run python tools\limr\test.py --dataset aebad_s --root I:\exp\datasets\AeBAD\AeBAD_S \
     --category AeBAD_S --image-size 256 --backbone resnet34 --alpha 1.75 \
     --block-dropout 0.0 --block-ffn-dropout 0.0 --block-attn-dropout 0.0 \
     --frozen-stages 3 --seed 54 --original-checkpoint I:\exp\LiMR\best_student_model_175.pth
